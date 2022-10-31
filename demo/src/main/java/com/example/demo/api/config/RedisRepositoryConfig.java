@@ -1,4 +1,4 @@
-package com.example.demo.config;
+package com.example.demo.api.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
