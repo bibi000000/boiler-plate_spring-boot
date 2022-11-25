@@ -1,4 +1,4 @@
-package com.wyaa.demo2.api.entity;
+package com.wyaa.demo2.entity;
 
 import lombok.*;
 
@@ -19,12 +19,13 @@ public class UserAccount{
     @Column(name = "user_account_email", nullable = false, columnDefinition = "VARCHAR(100) UNIQUE")
     private String userAccountEmail;
 
-    @Column(name = "user_account_password", nullable = false, columnDefinition = "VARCHAR(20) UNIQUE")
+    @Column(name = "user_account_password", nullable = false, columnDefinition = "VARCHAR(100) UNIQUE")
     private String userAccountPassword;
 
     @Column(name = "user_account_nickname", nullable = false, columnDefinition = "VARCHAR(20) UNIQUE")
     private String userAccountNickname;
 
-    @Column(name = "user_account_role", nullable = false, columnDefinition = "VARCHAR(3)")
+//    @Column(name = "user_account_role", nullable = false, columnDefinition = "VARCHAR(3)")
+    @Column(name = "user_account_role", nullable = true, columnDefinition = "VARCHAR(3)")
     private String userAccountRole;
 }
