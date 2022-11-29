@@ -29,4 +29,5 @@ public class AuthController {
         }
         return ResponseEntity.status(401).body(UserAccountLoginPostRes.of(401, "Invalid Password", null));
     }
+
 }

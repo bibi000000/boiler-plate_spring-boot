@@ -5,35 +5,47 @@ import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.relational.core.sql.In;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
-import java.util.Base64;
-import java.util.Date;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 public class JwtTokenUtil {
+    private final Logger logger = LoggerFactory.getLogger(JwtTokenUtil.class);
+    private final RedisUtil redisUtil;
     private final Key key;
     private final Integer accessTokenExpiration;
     private final Integer refreshTokenExpiration;
     public static final String TOKEN_PREFIX = "Bearer ";
     public static final String HEADER_STRING = "Authorization";
     public static final String ISSUER = "wyaa";
+    public static final String AUTHORITIES_KEY = "auth";
 
     @Autowired
     public JwtTokenUtil(@Value("${jwt.secret}") String secretKey,
                         @Value("${jwt.access-token-expiration}") Integer accessTokenExpiration,
-                        @Value("${jwt.refresh-token-expiration}") Integer refreshTokenExpiration) {
+                        @Value("${jwt.refresh-token-expiration}") Integer refreshTokenExpiration,
+                        RedisUtil redisUtil) {
         String encodingSecretKey = Base64.getEncoder().encodeToString(secretKey.getBytes(StandardCharsets.UTF_8));
         byte[] decoded = Base64.getDecoder().decode(encodingSecretKey.getBytes(StandardCharsets.UTF_8));
         this.key = Keys.hmacShaKeyFor(decoded);
         this.accessTokenExpiration = accessTokenExpiration;
         this.refreshTokenExpiration = refreshTokenExpiration;
+        this.redisUtil = redisUtil;
     }
 
     public String createAccessToken(int userAccountSeq) {
@@ -90,6 +102,9 @@ public class JwtTokenUtil {
         String tokenDelPrefix = token.replace(TOKEN_PREFIX, "");
         try {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(tokenDelPrefix);
+            if (redisUtil.hasKeyBlackList(token)) {
+                return false;
+            }
             return true;
         } catch (SignatureException ex) {
             log.error("validateToken - Not valid JWT signature.");
@@ -107,5 +122,20 @@ public class JwtTokenUtil {
             log.error("validateToken - Empty token.");
             throw new IllegalArgumentException("Empty token.");
         }
+    }
+
+    public Authentication getAuthentication(String token) {
+        Claims claims = Jwts
+                .parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        Collection<? extends GrantedAuthority> authorities =
+                Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
+                        .map(SimpleGrantedAuthority::new)
+                        .collect(Collectors.toList());
+        User principal = new User(claims.getSubject(), "", authorities);
+        return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
 }
